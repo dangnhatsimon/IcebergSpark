@@ -1,0 +1,147 @@
+version: "3"
+
+x-spark-common: &spark-common
+  build:
+    context: .
+    dockerfile: ./Dockerfile
+  volumes:
+    - ./spark-config:/opt/spark/conf
+    - ./jobs:/opt/spark/jobs
+    - ./datasets:/opt/spark/datasets
+    - ./spark-events:/opt/spark/spark-events
+    - ./spark-warehouse:/opt/spark/spark-warehouse
+    - ./spark-checkpoint:/opt/spark/spark-checkpoint
+    - ./spark-state:/opt/spark/spark-state
+  env_file:
+    - .env.spark
+  networks:
+    - iceberg-spark
+
+
+services:
+  spark-master:
+    container_name: iceberg-spark-master
+    <<: *spark-common
+    entrypoint: ./entrypoint.sh --workload master --master-host iceberg-spark-master --master-port 7077 --master-webui-port 8080
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    ports:
+      - '8080:8080' # Spark master Web UI
+      - '7077:7077' # For spark-node-to-spark-node queries
+      - '4040:4040' # Spark worker data
+      - '8889:8889' # Optionaly - Jupyter web UI
+
+  spark-history-server:
+    container_name: iceberg-spark-history
+    <<: *spark-common
+    entrypoint: ['./entrypoint.sh', '--workload', 'history']
+    depends_on:
+      - spark-master
+    ports:
+      - '18080:18080'
+
+  spark-worker-1:
+    container_name: iceberg-spark-worker-1
+    <<: *spark-common
+    entrypoint: ./entrypoint.sh --workload worker --master-host iceberg-spark-master --master-port 7077 --worker-cores 4 --worker-memory 2g --worker-webui-port 8081
+    depends_on:
+      - spark-master
+    ports:
+      - '8081:8081'
+
+  spark-worker-2:
+    container_name: iceberg-spark-worker-2
+    <<: *spark-common
+    entrypoint: ./entrypoint.sh --workload worker --master-host iceberg-spark-master --master-port 7077 --worker-cores 4 --worker-memory 2g --worker-webui-port 8081
+    depends_on:
+      - spark-master
+    ports:
+      - '8082:8081'
+
+  spark-worker-3:
+    container_name: iceberg-spark-worker-3
+    <<: *spark-common
+    entrypoint: ./entrypoint.sh --workload worker --master-host iceberg-spark-master --master-port 7077 --worker-cores 4 --worker-memory 2g --worker-webui-port 8081
+    depends_on:
+      - spark-master
+    ports:
+      - '8083:8081'
+
+  spark-iceberg:
+    image: tabulario/spark-iceberg
+    container_name: spark-iceberg
+    build: spark/
+    networks:
+      iceberg-spark:
+    depends_on:
+      - rest
+      - minio
+    volumes:
+      - ./warehouse:/home/iceberg/warehouse
+      - ./notebooks:/home/iceberg/notebooks/notebooks
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+    ports:
+      - 8888:8888
+      - 8080:8080
+      - 10000:10000
+      - 10001:10001
+  rest:
+    image: apache/iceberg-rest-fixture
+    container_name: iceberg-rest
+    networks:
+      iceberg-:
+    ports:
+      - 8181:8181
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - CATALOG_WAREHOUSE=s3://warehouse/
+      - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
+      - CATALOG_S3_ENDPOINT=http://minio:9000
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password
+      - MINIO_DOMAIN=minio
+    networks:
+      iceberg-:
+        aliases:
+          - warehouse.minio
+    ports:
+      - 9001:9001
+      - 9000:9000
+    command: [ "server", "/data", "--console-address", ":9001" ]
+  mc:
+    depends_on:
+      - minio
+    image: minio/mc
+    container_name: mc
+    networks:
+      iceberg-:
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc config host add minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc rm -r --force minio/warehouse;
+      /usr/bin/mc mb minio/warehouse;
+      /usr/bin/mc anonymous set public minio/warehouse;
+      tail -f /dev/null
+      "
+volumes:
+  spark-events:
+
+networks:
+  iceberg-spark:
+    driver: bridge

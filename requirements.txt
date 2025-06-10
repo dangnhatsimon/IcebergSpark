@@ -1,0 +1,16 @@
+py4j==0.10.9.7
+pyspark==4.0.0
+delta-spark==3.3.1
+kafka-python==2.2.7
+confluent-kafka==2.10.0
+python-dotenv==1.1.0
+jupyter==1.1.1
+spylon-kernel==0.4.1
+pyiceberg[pyarrow,duckdb,pandas]==0.9.1
+jupysql==0.11.1
+matplotlib==3.9.4
+scipy==1.14.1
+duckdb-engine==0.17.0
+grpcio==1.71.0
+pycolor==1.2.1
+papermill==2.6.0
