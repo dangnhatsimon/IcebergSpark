@@ -67,6 +67,9 @@ FROM pyspark AS pyspark-runner
 ## Download iceberg spark runtime
 RUN curl https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.13/${ICEBERG_VERSION}/iceberg-spark-runtime-3.5_2.13-${ICEBERG_VERSION}.jar -Lo /opt/spark/jars/iceberg-spark-runtime-3.5_2.13-${ICEBERG_VERSION}.jar
 
+# Download Nessie Spark Extension
+RUN curl https://repo1.maven.org/maven2/org/projectnessie/nessie-integrations/nessie-spark-extensions-3.5_2.13/0.104.1/nessie-spark-extensions-3.5_2.13-0.104.1.jar -Lo /opt/spark/jars/nessie-spark-extensions-3.5_2.13-0.104.1.jar
+
 # Download delta jars
 #RUN curl https://repo1.maven.org/maven2/io/delta/delta-spark_2.13/3.3.2/delta-spark_2.13-3.3.2.jar -Lo /opt/spark/jars/delta-spark_2.13-3.3.2.jar \
 #    && curl https://repo1.maven.org/maven2/io/delta/delta-core_2.13/2.4.0/delta-core_2.13-2.4.0.jar -Lo /opt/spark/jars/delta-core_2.13-2.4.0.jar \
@@ -82,7 +85,9 @@ RUN curl https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime
 
 # Download S3 jars
 RUN curl https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar -Lo /opt/spark/jars/hadoop-aws-3.3.4.jar \
-    && curl https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.782/aws-java-sdk-bundle-1.12.782.jar -Lo /opt/spark/jars/aws-java-sdk-bundle-1.12.782.jar
+    && curl https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.782/aws-java-sdk-bundle-1.12.782.jar -Lo /opt/spark/jars/aws-java-sdk-bundle-1.12.782.jar \
+    && curl https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.31.59/bundle-2.31.59.jar -Lo /opt/spark/jars/bundle-2.31.59.jar \
+    && curl https://repo1.maven.org/maven2/software/amazon/awssdk/url-connection-client/2.31.59/url-connection-client-2.31.59.jar -Lo /opt/spark/jars/url-connection-client-2.31.59.jar
 
 # Download AWS bundle
 RUN curl -s https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar -Lo /opt/spark/jars/iceberg-aws-bundle-${ICEBERG_VERSION}.jar
